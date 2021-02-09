@@ -3,6 +3,7 @@
 /* ========================================================================== */
 
 #include "util.h"
+#include "dev_lst.h"
 #include <stdio.h>
 #include <errno.h>
 #include <assert.h>
@@ -20,14 +21,26 @@
 /* -------------------------------------------------------------------------- */
 
   bool
+fdelfp( int fd )
+{
+  ElfW(Ehdr) header;
+  size_t rsl = read( fd, & header, sizeof( header ) );
+  lseek( fd, SEEK_CUR, ( - rsl ) );
+  return ( rsl == sizeof( header ) )                         &&
+         ( memcmp( header.e_ident, ELFMAG, SELFMAG ) == 0 );
+}
+
+
+  bool
 elfp( const char * fname )
 {
   ElfW(Ehdr) header;
   FILE * f = fopen( fname, "rb" );
   if ( f == NULL ) return false;
-  fread( & header, sizeof( header ), 1, f );
+  size_t rsl = fread( & header, sizeof( header ), 1, f );
   fclose( f );
-  return ( memcmp( header.e_ident, ELFMAG, SELFMAG ) == 0 );
+  return ( rsl == sizeof( header ) )                         &&
+         ( memcmp( header.e_ident, ELFMAG, SELFMAG ) == 0 );
 }
 
 
@@ -36,15 +49,29 @@ elfp( const char * fname )
 #define AR_MAGIC      "!<arch>"
 #define AR_MAGIC_SIZE ( sizeof( AR_MAGIC ) - 1 )
 
+
+  bool
+fdarp( int fd )
+{
+  char buf[AR_MAGIC_SIZE];
+  size_t rsl = read( fd, & buf, AR_MAGIC_SIZE );
+  lseek( fd, ( - rsl ), SEEK_CUR );
+  return ( rsl == AR_MAGIC_SIZE )                         &&
+         ( memcmp( buf, AR_MAGIC, AR_MAGIC_SIZE ) == 0 );
+}
+
+
   bool
 arp( const char * fname )
 {
   char buf[AR_MAGIC_SIZE];
   FILE * f = fopen( fname, "rb" );
-  fread( & buf, AR_MAGIC_SIZE, 1, f );
+  size_t rsl = fread( & buf, AR_MAGIC_SIZE, 1, f );
   fclose( f );
-  return ( memcmp( buf, AR_MAGIC, AR_MAGIC_SIZE ) == 0 );
+  return ( rsl == AR_MAGIC_SIZE )                         &&
+         ( memcmp( buf, AR_MAGIC, AR_MAGIC_SIZE ) == 0 );
 }
+
 
 typedef struct {
   char   name[PATH_MAX];
@@ -67,6 +94,7 @@ typedef struct {
   } buf;
 } ar_member_t;
 
+
 typedef struct {
         int      fd;
   const char   * fname;
@@ -74,6 +102,7 @@ typedef struct {
         char   * extfn;
         bool     verbose;
 } ar_handle_t;
+
 
   static bool
 ar_open_fd( const char * filename, int fd, ar_handle_t * handle, bool verbose )
@@ -93,6 +122,7 @@ ar_open_fd( const char * filename, int fd, ar_handle_t * handle, bool verbose )
 	return true;
 }
 
+
   static bool
 ar_open( const char * filename, ar_handle_t * handle, bool verbose )
 {
@@ -100,7 +130,8 @@ ar_open( const char * filename, ar_handle_t * handle, bool verbose )
 
 	if ( ( fd = open( filename, O_RDONLY ) ) == -1 )
     {
-      fprintf( stderr, "%s: could not open\n", filename);
+      if ( verbose ) fprintf( stderr, "%s: could not open\n", filename);
+      return false;
     }
 
 	if ( ! ar_open_fd( filename, fd, handle, verbose ) )
@@ -111,6 +142,7 @@ ar_open( const char * filename, ar_handle_t * handle, bool verbose )
 
 	return true;
 }
+
 
   static bool
 ar_next( ar_handle_t * ar, ar_member_t * member )
@@ -234,16 +266,20 @@ ar_next( ar_handle_t * ar, ar_member_t * member )
 }
 
 
+/* -------------------------------------------------------------------------- */
+
+
   bool
-arelfp( const char * fname )
+fdarelfp( int fd )
 {
   ElfW(Ehdr)    header;
   ar_handle_t   handle;
   ar_member_t   member;
   struct stat   st;
   char        * ar_buffer = NULL;
+  off_t         start_pos = lseek( fd, 0, SEEK_CUR );
 
-  if ( ! ar_open( fname, & handle, true ) ) return false;
+  if ( ! ar_open_fd( "", fd, & handle, true ) ) return false;
 
   fstat( handle.fd, & st );
 
@@ -262,100 +298,26 @@ arelfp( const char * fname )
           handle.extfn = NULL;
           close( handle.fd );
           handle.fd = -1;
+          lseek( fd, start_pos, SEEK_SET );
           return true;
         }
     }
 
   munmap( ar_buffer, st.st_size );
+  lseek( fd, start_pos, SEEK_SET );
   return false;
 }
 
-
-/* -------------------------------------------------------------------------- */
-
-/** Used to track inodes which have been visited on a device. */
-typedef struct _dev_lst {
-  dev_t             dev; 
-  ino_t           * nodes;
-  size_t            ncnt;
-  size_t            ncap;
-  struct _dev_lst * nxt;
-} dev_lst;
-
-#define DEV_LST_DEFAULT_SIZE 256
-
-/**
- * Mark the file corresponding to the Device/Inode indicated as "visited".
- * Return true if the given file had already been visited previously.
- */
-bool dev_lst_mark( dev_lst *, dev_t, ino_t ) __attribute__(( nonnull ));
-void dev_lst_realloc( dev_lst *, size_t ) __attribute__(( nonnull ));
-void dev_lst_free( dev_lst * ) __attribute__(( nonnull ));
-
-  void
-dev_lst_realloc( dev_lst * elem, size_t nsize )
-{
-  if ( ( elem->nodes == NULL ) || ( elem->ncnt == 0 ) )
-    {
-      elem->nodes = malloc( sizeof( ino_t ) * nsize );
-    }
-  else
-    {
-      elem->nodes = realloc( elem->nodes, sizeof( ino_t ) * nsize );
-    }
-  assert( elem->nodes != NULL );
-  elem->ncap = nsize;
-}
 
   bool
-dev_lst_mark( dev_lst * dlst, dev_t dev, ino_t ino )
+arelfp( const char * fname )
 {
-  /* Find the device corresponding to `dev' if it exists */
-  while ( ( dlst != NULL ) && ( dlst->nxt != NULL ) && ( dlst->dev != dev ) )
-    {
-      dlst = dlst->nxt;
-    }
-  if ( dlst->dev == dev )  /* Device was found */
-    {
-      for ( size_t i = 0; i < dlst->ncnt; i++ )  /* Find the inode */
-        {
-          if ( dlst->nodes[i] == ino ) return true;
-        }
-      /* Inode not found, add it. Doubling size of inode list if needed. */
-      if ( dlst->ncap <= ( dlst->ncnt + 1 ) )
-        {
-          dev_lst_realloc( dlst, 2 * dlst->ncap );
-        }
-      dlst->nodes[dlst->ncnt++] = ino;
-    }
-  else  /* A new device was found, add it to the device list */
-    {
-      assert( dlst->nxt == NULL );
-      dlst->nxt = malloc( sizeof( dev_lst ) );
-      assert( dlst->nxt != NULL );
-      dlst = dlst->nxt;
-      dlst->dev   = dev;
-      dlst->nodes = NULL;
-      dlst->ncnt  = 0;
-      dlst->nxt   = NULL;
-      dev_lst_realloc( dlst, DEV_LST_DEFAULT_SIZE );
-      dlst->nodes[0] = ino;
-      dlst->ncnt++;
-    }
-  return false;
-}
-
-  void
-dev_lst_free( dev_lst * dlst )
-{
-  free( dlst->nodes );
-  dlst->nodes = NULL;
-  if ( dlst->nxt != NULL )
-    {
-      dev_lst_free( dlst->nxt );
-      dlst->nxt = NULL;
-    }
-  free( dlst );
+  int fd = -1;
+	if ( ( fd = open( fname, O_RDONLY ) ) == -1 ) return false;
+  bool rsl = fdarelfp( fd );
+  close( fd );
+  fd = -1;
+  return rsl;
 }
 
 
@@ -482,6 +444,7 @@ do_to_elfs( const char * fname, void * aux )
     }
 }
 
+
   void
 map_elfs_recur( char * const * paths, int pathc, do_file_fn fn, void * aux )
 {
@@ -492,12 +455,14 @@ map_elfs_recur( char * const * paths, int pathc, do_file_fn fn, void * aux )
 
 /* -------------------------------------------------------------------------- */
 
+#if 0
   int
 main( int argc, char * argv[], char ** envp )
 {
   print_elfs_recur( argv + 1, argc - 1 );
   return EXIT_SUCCESS;
 }
+#endif
 
 
 /* -------------------------------------------------------------------------- */

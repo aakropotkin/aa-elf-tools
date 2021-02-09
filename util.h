@@ -23,6 +23,16 @@ bool arelfp( const char * fname ) __attribute__(( nonnull ));
 
 /* -------------------------------------------------------------------------- */
 
+/** Detect if the file descriptor has ELF format. */
+bool fdelfp( int fd );
+/** Detect if the file descriptor is AR archive. */
+bool fdarp( int fd );
+/** Detect if the file descriptor is AR archive containing ELF data. */
+bool fdarelfp( int fd );
+
+
+/* -------------------------------------------------------------------------- */
+
 /**
  * Lambda which may be applied to filepaths using `map_files_recur'.
  * FIXME: Change to accept file descriptor instead to allow members of AR
@@ -39,6 +49,11 @@ void map_files_recur( char * const *, int, do_file_fn, void * aux )
 /** Applies `do_file_fn' to ELF files only. */
 void map_elfs_recur( char * const *, int, do_file_fn, void * aux )
   __attribute__(( nonnull( 1, 3 ) ));
+
+
+/* -------------------------------------------------------------------------- */
+
+typedef void (*do_fd_fn)( int fd, void * aux );
 
 
 /* -------------------------------------------------------------------------- */
