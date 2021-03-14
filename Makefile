@@ -12,17 +12,18 @@ DEBUG_LDFLAGS := -g${DEBUG_STYLE}
 LIB_CFLAGS  := -fPIC ${DEBUG_CFLAGS}
 LIB_LDFLAGS := -shared ${DEBUG_LDFLAGS}
 
+CFLAGS += -Iinclude
 CFLAGS += --std=c18
 
 
 # ---------------------------------------------------------------------------- #
 
-%.o: src/%.c src/%.h
+%.o: src/%.c include/%.h
 	${CC} ${CFLAGS} -c $< -o $@;
 
 
 %_sh.o: CFLAGS += ${LIB_CFLAGS}
-%_sh.o: src/%.c src/%.h
+%_sh.o: src/%.c include/%.h
 	${CC} ${CFLAGS} -c $< -o $@;
 
 
