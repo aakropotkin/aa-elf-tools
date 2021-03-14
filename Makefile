@@ -3,7 +3,7 @@
 
 # ============================================================================ #
 
-CC := /grid/common/pkgs/gcc/v9.3.0p1/bin/gcc
+#CC := /grid/common/pkgs/gcc/v9.3.0p1/bin/gcc
 
 DEBUG_STYLE   := gdb
 DEBUG_CFLAGS  := -g${DEBUG_STYLE}
@@ -17,8 +17,12 @@ CFLAGS += --std=c18
 
 # ---------------------------------------------------------------------------- #
 
+%.o: src/%.c src/%.h
+	${CC} ${CFLAGS} -c $< -o $@;
+
+
 %_sh.o: CFLAGS += ${LIB_CFLAGS}
-%_sh.o: %.c %.h
+%_sh.o: src/%.c src/%.h
 	${CC} ${CFLAGS} -c $< -o $@;
 
 
