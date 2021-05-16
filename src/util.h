@@ -1,12 +1,14 @@
 /* -*- mode: c; -*- */
 
-#ifndef _LIBSCRIPTS_UTIL_H
-#define _LIBSCRIPTS_UTIL_H
+#ifndef _AA_ELF_TOOLS_UTIL_H
+#define _AA_ELF_TOOLS_UTIL_H
 
 /* ========================================================================== */
 
-#define _GNU_SOURCE
-#include <elf.h>
+#ifndef _GNU_SOURCE
+#  define _GNU_SOURCE
+#endif
+
 #include <stdlib.h>
 #include <stdbool.h>
 
@@ -15,8 +17,10 @@
 
 /** Detect if the file at path `fname' has ELF format. */
 bool elfp( const char * fname )   __attribute__(( nonnull ));
+
 /** Detect if the file at path `fname' is AR archive. */
 bool arp( const char * fname )    __attribute__(( nonnull ));
+
 /** Detect if the file at path `fname' is AR archive containing ELF data. */
 bool arelfp( const char * fname ) __attribute__(( nonnull ));
 

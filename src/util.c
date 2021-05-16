@@ -3,6 +3,7 @@
 /* ========================================================================== */
 
 #include "util.h"
+#include <libelf.h>
 #include <stdio.h>
 #include <errno.h>
 #include <assert.h>
@@ -22,12 +23,26 @@
   bool
 elfp( const char * fname )
 {
-  ElfW(Ehdr) header;
-  FILE * f = fopen( fname, "rb" );
-  if ( f == NULL ) return false;
-  fread( & header, sizeof( header ), 1, f );
-  fclose( f );
-  return ( memcmp( header.e_ident, ELFMAG, SELFMAG ) == 0 );
+  Elf_Kind k = ELF_K_NONE;
+  Elf * e = NULL;
+  int fd = open( fname, O_RDONLY );
+
+  if ( fd == -1 )  /* Failed to open file. */
+    {
+      return false;
+    }
+
+  e = elf_begin( fd, ELF_C_READ, (Elf *) NULL );
+  if ( e == NULL )  /* Not an ELF file. */
+    {
+      return false;
+    }
+
+  k = elf_kind( e );
+
+  elf_end( e );
+
+  return k == ELF_K_ELF;
 }
 
 
