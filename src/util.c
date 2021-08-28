@@ -20,6 +20,33 @@
 
 /* -------------------------------------------------------------------------- */
 
+/**
+ * This function is run when this shared library is loaded.
+ * It is required for `elf_version' to be called at some point before almost
+ * any `libelf' APIs can be used; so it's good to just knock this out early.
+ */
+static void validate_libelf_version( void ) __attribute__(( constructor ));
+
+  static void
+validate_libelf_version( void )
+{
+  if ( elf_version( EV_CURRENT ) == EV_NONE )
+    {
+      fprintf( stderr, "`libelf' library is out of date!\n" );
+      exit( EXIT_FAILURE );
+    }
+}
+
+
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Note that this return `true' for Object Files, Shared Objects, Executables,
+ * and ( most importantly ) for AR archives containing Object Files as well!
+ *
+ * Actually `arelfp' is pretty redundant, because we could just check the output
+ * of `elf_kind' to distinguish between AR archives and the other types.
+ */
   bool
 elfp( const char * fname )
 {
@@ -35,14 +62,18 @@ elfp( const char * fname )
   e = elf_begin( fd, ELF_C_READ, (Elf *) NULL );
   if ( e == NULL )  /* Not an ELF file. */
     {
+      //printf( "%s\n", elf_errmsg( elf_errno() ) );
+      close( fd );
       return false;
     }
 
   k = elf_kind( e );
 
   elf_end( e );
+  e = NULL;
+  close( fd );
 
-  return k == ELF_K_ELF;
+  return ( k == ELF_K_ELF );
 }
 
 
@@ -249,6 +280,8 @@ ar_next( ar_handle_t * ar, ar_member_t * member )
 }
 
 
+/* -------------------------------------------------------------------------- */
+
   bool
 arelfp( const char * fname )
 {
@@ -303,11 +336,11 @@ typedef struct _dev_lst {
  * Mark the file corresponding to the Device/Inode indicated as "visited".
  * Return true if the given file had already been visited previously.
  */
-bool dev_lst_mark( dev_lst *, dev_t, ino_t ) __attribute__(( nonnull ));
-void dev_lst_realloc( dev_lst *, size_t ) __attribute__(( nonnull ));
-void dev_lst_free( dev_lst * ) __attribute__(( nonnull ));
+static bool dev_lst_mark( dev_lst *, dev_t, ino_t ) __attribute__(( nonnull ));
+static void dev_lst_realloc( dev_lst *, size_t ) __attribute__(( nonnull ));
+static void dev_lst_free( dev_lst * ) __attribute__(( nonnull ));
 
-  void
+  static void
 dev_lst_realloc( dev_lst * elem, size_t nsize )
 {
   if ( ( elem->nodes == NULL ) || ( elem->ncnt == 0 ) )
@@ -322,7 +355,7 @@ dev_lst_realloc( dev_lst * elem, size_t nsize )
   elem->ncap = nsize;
 }
 
-  bool
+  static bool
 dev_lst_mark( dev_lst * dlst, dev_t dev, ino_t ino )
 {
   /* Find the device corresponding to `dev' if it exists */
@@ -360,7 +393,7 @@ dev_lst_mark( dev_lst * dlst, dev_t dev, ino_t ino )
   return false;
 }
 
-  void
+  static void
 dev_lst_free( dev_lst * dlst )
 {
   free( dlst->nodes );
@@ -380,7 +413,6 @@ dev_lst_free( dev_lst * dlst )
 do_print_elf_objects( const char * fpath, void * _unused )
 {
   if ( elfp( fpath ) || arelfp( fpath ) )
-  //if ( arelfp( fpath ) )
     {
       /* We have a hit! */
       printf( "%s\n", fpath );
@@ -502,16 +534,6 @@ map_elfs_recur( char * const * paths, int pathc, do_file_fn fn, void * aux )
 {
   struct fn_aux_s user_args = { fn, aux };
   map_files_recur( paths, pathc, do_to_elfs, & user_args );
-}
-
-
-/* -------------------------------------------------------------------------- */
-
-  int
-main( int argc, char * argv[], char ** envp )
-{
-  print_elfs_recur( argv + 1, argc - 1 );
-  return EXIT_SUCCESS;
 }
 
 
