@@ -2,7 +2,7 @@
 
 /* ========================================================================== */
 
-#include "util.h"
+#include "aa-elf-util.h"
 #include <libelf.h>
 #include <stdio.h>
 #include <errno.h>
