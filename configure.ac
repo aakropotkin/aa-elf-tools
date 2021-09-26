@@ -4,6 +4,7 @@
 AC_PREREQ([2.70])
 AC_INIT([aa-elf-tools], [0.1], [alex.ameen.tx@gmail.com])
 AC_CONFIG_MACRO_DIRS([m4])
+AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 LT_PREREQ([2.4.6])
 LT_INIT
