@@ -539,6 +539,177 @@ map_elfs_recur( char * const * paths, int pathc, do_file_fn fn, void * aux )
 
 /* -------------------------------------------------------------------------- */
 
+static inline Elf32_Shdr * elf_sheader_32( Elf32_Ehdr * hdr )
+  __attribute__(( nonnull ));
+
+  static inline Elf32_Shdr *
+elf_sheader_32( Elf32_Ehdr * hdr )
+{
+  return (Elf32_Shdr *) ( ( (int) hdr ) + hdr->e_shoff );
+}
+
+static inline Elf64_Shdr * elf_sheader_64( Elf64_Ehdr * hdr )
+  __attribute__(( nonnull ));
+
+  static inline Elf64_Shdr *
+elf_sheader_64( Elf64_Ehdr * hdr )
+{
+  return (Elf64_Shdr *) ( ( (int) hdr ) + hdr->e_shoff );
+}
+
+
+/* -------------------------------------------------------------------------- */
+
+static inline Elf32_Shdr * elf_section_32( Elf32_Ehdr * hdr, int idx )
+  __attribute__(( nonnull ));
+
+  static inline Elf32_Shdr *
+elf_section_32( Elf32_Ehdr * hdr, int idx )
+{
+  return & elf_sheader_32( hdr )[idx];
+}
+
+static inline Elf64_Shdr * elf_section_64( Elf64_Ehdr * hdr, int idx )
+  __attribute__(( nonnull ));
+
+  static inline Elf64_Shdr *
+elf_section_64( Elf64_Ehdr * hdr, int idx )
+{
+  return & elf_sheader_64( hdr )[idx];
+}
+
+
+/* -------------------------------------------------------------------------- */
+
+static inline char * elf_str_table_32( Elf32_Ehdr * hdr )
+  __attribute__(( nonnull ));
+
+  static inline char *
+elf_str_table_32( Elf32_Ehdr * hdr )
+{
+  if( hdr->e_shstrndx == SHN_UNDEF )
+    {
+      return NULL;
+    }
+  return (char *) hdr + elf_section_32( hdr, hdr->e_shstrndx )->sh_offset;
+}
+
+static inline char * elf_str_table_64( Elf64_Ehdr * hdr )
+  __attribute__(( nonnull ));
+
+  static inline char *
+elf_str_table_64( Elf64_Ehdr * hdr )
+{
+  if( hdr->e_shstrndx == SHN_UNDEF )
+    {
+      return NULL;
+    }
+  return (char *) hdr + elf_section_64( hdr, hdr->e_shstrndx )->sh_offset;
+}
+
+
+/* -------------------------------------------------------------------------- */
+
+static inline char * elf_lookup_string_32( Elf32_Ehdr *hdr, int offset )
+  __attribute__(( nonnull ));
+
+  static inline char *
+elf_lookup_string_32( Elf32_Ehdr *hdr, int offset )
+{
+  char * strtab = elf_str_table_32( hdr );
+  if( strtab == NULL )
+    {
+      return NULL;
+    }
+  return strtab + offset;
+}
+
+static inline char * elf_lookup_string_64( Elf64_Ehdr *hdr, int offset )
+  __attribute__(( nonnull ));
+
+  static inline char *
+elf_lookup_string_64( Elf64_Ehdr *hdr, int offset )
+{
+  char * strtab = elf_str_table_64( hdr );
+  if( strtab == NULL )
+    {
+      return NULL;
+    }
+  return strtab + offset;
+}
+
+
+/* -------------------------------------------------------------------------- */
+
+/** https://wiki.osdev.org/ELF_Tutorial */
+  int
+elf_get_symval_32( struct Elf32_Ehdr * hdr, int table, unsigned int idx )
+{
+  if( ( table == SHN_UNDEF ) || ( idx == SHN_UNDEF ) )
+    {
+      return EXIT_SUCCESS;
+    }
+
+  Elf32_Shdr * symtab = elf_section_32( hdr, table );
+
+  uint32_t symtab_entries = symtab->sh_size / symtab->sh_entsize;
+
+  if( idx >= symtab_entries )
+    {
+      fprintf( stderr, "Symbol Index out of Range (%d:%u).\n", table, idx );
+      return EXIT_FAILURE;
+    }
+
+  int symaddr = (int) hdr + symtab->sh_offset;
+  Elf32_Sym * symbol = & ( (Elf32_Sym *) symaddr )[idx];
+
+  if( symbol->st_shndx == SHN_UNDEF )
+    {
+      /* External symbol, lookup value */
+      Elf32_Shdr * strtab = elf_section_32( hdr, symtab->sh_link );
+      const char * name =
+        (const char *) hdr + strtab->sh_offset + symbol->st_name;
+
+      extern void * elf_lookup_symbol( const char *name );
+      void * target = elf_lookup_symbol( name );
+
+      if( target == NULL )
+        {
+          /* Extern symbol not found */
+          if( ELF32_ST_BIND( symbol->st_info ) & STB_WEAK )
+            {
+              /* Weak symbol initialized as 0 */
+              return 0;
+            }
+          else
+            {
+              fprintf( stderr, "Undefined External Symbol : %s.\n", name );
+              return EXIT_FAILURE;
+            }
+        }
+      else
+        {
+          return (int) target;
+        }
+    }
+  else if( symbol->st_shndx == SHN_ABS )
+    {
+      /* Absolute symbol */
+      return symbol->st_value;
+    }
+  else
+    {
+      /* Internally defined symbol */
+      Elf32_Shdr * target = elf_section( hdr, symbol->st_shndx );
+      return (int) hdr + symbol->st_value + target->sh_offset;
+    }
+
+  return EXIT_FAILURE;
+}
+
+
+/* -------------------------------------------------------------------------- */
+
 
 
 /* ========================================================================== */
