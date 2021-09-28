@@ -539,6 +539,7 @@ map_elfs_recur( char * const * paths, int pathc, do_file_fn fn, void * aux )
 
 /* -------------------------------------------------------------------------- */
 
+#if 0
 static inline Elf32_Shdr * elf_sheader_32( Elf32_Ehdr * hdr )
   __attribute__(( nonnull ));
 
@@ -706,6 +707,7 @@ elf_get_symval_32( struct Elf32_Ehdr * hdr, int table, unsigned int idx )
 
   return EXIT_FAILURE;
 }
+#endif
 
 
 /* -------------------------------------------------------------------------- */

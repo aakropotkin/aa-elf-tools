@@ -8,7 +8,7 @@ AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 LT_PREREQ([2.4.6])
 LT_INIT
-AC_CONFIG_SRCDIR([src/util.h])
+AC_CONFIG_SRCDIR([src/findelfs.c])
 AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.

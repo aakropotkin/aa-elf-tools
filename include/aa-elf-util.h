@@ -60,6 +60,7 @@ void print_elfs_recur( char * const *, int ) __attribute__(( nonnull ));
 
 /* -------------------------------------------------------------------------- */
 
+#if 0
 struct Elf32_Ehdr;
 int elf_get_symval_32( struct Elf32_Ehdr *, int table, unsigned int idx )
   __attribute__(( nonnull ));
@@ -67,6 +68,7 @@ int elf_get_symval_32( struct Elf32_Ehdr *, int table, unsigned int idx )
 struct Elf64_Ehdr;
 int elf_get_symval_64( struct Elf64_Ehdr *, int table, unsigned int idx )
   __attribute__(( nonnull ));
+#endif
 
 
 /* -------------------------------------------------------------------------- */

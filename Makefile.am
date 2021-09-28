@@ -12,3 +12,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/include
 bin_PROGRAMS = findelfs
 findelfs_SOURCES = $(top_srcdir)/src/findelfs.c
 findelfs_LDADD = libaaelftools.la
+
+bin_PROGRAMS += printsyms
+printsyms_SOURCES = $(top_srcdir)/src/printsyms.c
+printsyms_LDADD = -lelf
